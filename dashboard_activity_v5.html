@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>Monitor Dashboard Activity</title>
+<style>
+	h1 { 
+    display: block;
+    font-size: 2em;
+    margin-top: 0.67em;
+    margin-bottom: 0.67em;
+    margin-left: 40;
+    margin-right: 0;
+    font-weight: bold;
+	font-family: "Helvetica Neue";
+	}
+
+	.data.set.label {
+		font: 500 40px "Helvetica Neue";
+		fill: #000000;
+		opacity: 0.4;
+	}
+</style>
+
+<h1>Monitor Dashboard Activity</h1>
+<div id="chart"></div>
+<div id="dataset-picker"></div>
+
+<script src="http://d3js.org/d3.v5.js"></script>
+<script>
+
+	// Chart dimensions.
+	var chartSize = 600;
+	var margin = { top: 40, right: 40, bottom: 40, left: 40 },
+		width = chartSize - margin.right - margin.left,
+		height = chartSize - margin.top - margin.bottom;
+
+	// Define svg object
+	var svg = d3.select("#chart").append("svg")
+		.attr("width", width + margin.left + margin.right)
+		.attr("height", height + margin.top + margin.bottom)
+		.append("g")
+		.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+	// Add chart grid and colors
+	var gridDim = 80,
+		gridSize = width / gridDim;
+
+	var colorSkew = 24;
+
+	var gridColorsGreen = d3.scaleLinear()
+							.domain([gridDim+colorSkew, 2*gridDim+colorSkew])
+							.range([d3.rgb("#FFFFFF"), d3.rgb('#35af5d')]),
+		gridColorsRed = d3.scaleLinear()
+							.domain([0-colorSkew, gridDim-colorSkew])
+							.range([d3.rgb("#b51c1c"), d3.rgb('#FFFFFF')]);
+
+	var x, y;
+	for(i = 0; i < gridDim; i++){
+		for(j = 0; j < gridDim; j++){
+			x = j, y = gridDim-i;
+			if (j > i){
+				svg.append("rect")
+				.attr("x", j*gridSize)
+				.attr("y", i*gridSize)
+				.attr("width", gridSize)
+                .attr("height", gridSize)
+                .style("fill", gridColorsGreen(x+y));
+			}
+			if (i > j){
+				svg.append("rect")
+				.attr("x", j*gridSize)
+				.attr("y", i*gridSize)
+				.attr("width", gridSize)
+                .attr("height", gridSize)
+                .style("fill", gridColorsRed( x+y ));
+			}
+		}
+	}
+
+	// Define axes and add labels
+	var xScale = d3.scaleLinear().range([0, width]),
+		yScale = d3.scaleLinear().range([height, 0]);
+
+	var xAxis = d3.axisBottom(xScale), //.tickFormat(d3.format(",d"))
+		yAxis = d3.axisLeft(yScale);
+
+	svg.append("text")
+		.attr("class", "x label")
+		.attr("text-anchor", "end")
+		.attr("x", width)
+		.attr("y", height - 6)
+		.text("average visit time (minutes)");
+
+	svg.append("text")
+		.attr("class", "y label")
+		.attr("text-anchor", "end")
+		.attr("y", 6)
+		.attr("dy", ".75em")
+		.attr("transform", "rotate(-90)")
+		.text("average number of pageviews");
+
+	// Define data sets and dot color scale
+	var datasets = ["1 week", "1 month", "6 months", "1 year"];
+	var dotColorScale = d3.scaleOrdinal().range(["#d9a472", "#97d8f2", "#28586b", "#eace24", "#c677c6", "#5142bc", "#b3b3b3"]);
+
+	// Read data and plot dots
+	var dataChart = function (jsonFile) {
+		d3.json("activity " + jsonFile + ".json").then(function(dashboard) {
+
+			//console.log(jsonFile);
+
+			// Scale the axes to range of data
+			xScale.domain([0, d3.max(dashboard.map(function (d) { return d.avg_visit_time; })) + 5]);
+			yScale.domain([0, d3.max(dashboard.map(function (d) { return d.pageviews; })) + 5]);
+
+			// Add axes
+			svg.append('g').attr("class", "x axis").attr("transform", "translate(0," + height + ")").call(xAxis);
+			svg.append('g').attr("class", "y axis").call(yAxis);
+		
+			// Plot a dot per dashboard
+			var dots = svg.append("g")
+				.attr("class", "dots")
+				.selectAll(".dot")
+				.data(dashboard).enter().append("circle")
+				.attr("cx", function (d) { return xScale(d.avg_visit_time); })
+				.attr("cy", function (d) { return yScale(d.pageviews); })
+				.attr("r", 15)
+				.attr("stroke", d3.rgb("#000000"))
+				.attr("stroke-width", 1)
+				.style("fill", function (d) { return dotColorScale(d.name); });
+
+			// Add label
+			var label = svg.append("text")
+				.attr("class", "data set label")
+				.attr("x", width)
+				.attr("y", height-60)
+				.attr("text-anchor", "end")
+				.text(jsonFile);
+
+		});
+	};
+
+	dataChart(datasets[0]);
+
+	// Button to change data set
+	var datasetpicker = d3.select("#dataset-picker").selectAll(".dataset-button").data(datasets);
+
+	datasetpicker.enter()
+				.append("input")
+            	.attr("value", function (d) { return d })
+				.attr("type", "button")
+				.attr("class", "dataset-button")
+				.on("click", function (d) {
+					d3.select("svg").selectAll("g").select(".dots").remove();
+					d3.select("svg").selectAll("g").select(".data.set.label").remove();
+					d3.select("svg").selectAll("g").select(".x.axis").remove();
+					d3.select("svg").selectAll("g").select(".y.axis").remove();
+					dataChart(d);
+				});
+
+</script>
