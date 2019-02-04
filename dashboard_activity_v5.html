@@ -3,8 +3,14 @@
 <meta charset="utf-8">
 <title>Monitor Dashboard Activity</title>
 <style>
+	body {
+		background-color: #302e2f;
+	}
+
 	h1 { 
     display: block;
+	text-align: center;
+	color: #e6e7e8;
     font-size: 2em;
     margin-top: 0.67em;
     margin-bottom: 0.67em;
@@ -19,11 +25,26 @@
 		fill: #000000;
 		opacity: 0.4;
 	}
+
+	.w3-col {
+		width: 50%;
+		text-align: center;
+		border-radius: 8px;
+		padding: 0.5em 0.5em 0.5em;
+		border: 3px solid #2a84a6;
+		background-color: #e6e7e8;
+	}
 </style>
 
-<h1>Monitor Dashboard Activity</h1>
-<div id="chart"></div>
-<div id="dataset-picker"></div>
+<body>
+	<h1>Monitor Dashboard Activity</h1>
+	<div class="w3-row">
+		<div class="w3-col">
+			<div id="chart"></div>
+			<div id="dataset-picker"></div>
+		</div>
+	</div>
+</body>
 
 <script src="http://d3js.org/d3.v5.js"></script>
 <script>
@@ -74,6 +95,14 @@
                 .attr("height", gridSize)
                 .style("fill", gridColorsRed( x+y ));
 			}
+			if (i == j){
+				svg.append("rect")
+				.attr("x", j*gridSize)
+				.attr("y", i*gridSize)
+				.attr("width", gridSize)
+                .attr("height", gridSize)
+                .style("fill", gridColorsRed( x+y ));
+			}
 		}
 	}
 
@@ -99,8 +128,9 @@
 		.attr("transform", "rotate(-90)")
 		.text("average number of pageviews");
 
-	// Define data sets and dot color scale
+	// Define data sets, radius scale and dot color scale
 	var datasets = ["1 week", "1 month", "6 months", "1 year"];
+	var radiusScale = d3.scaleSqrt().range([1, 30]);
 	var dotColorScale = d3.scaleOrdinal().range(["#d9a472", "#97d8f2", "#28586b", "#eace24", "#c677c6", "#5142bc", "#b3b3b3"]);
 
 	// Read data and plot dots
@@ -109,9 +139,10 @@
 
 			//console.log(jsonFile);
 
-			// Scale the axes to range of data
+			// Scale the axes and radius to range of data
 			xScale.domain([0, d3.max(dashboard.map(function (d) { return d.avg_visit_time; })) + 5]);
 			yScale.domain([0, d3.max(dashboard.map(function (d) { return d.pageviews; })) + 5]);
+			radiusScale.domain([0, d3.max(dashboard.map(function (d) { return d.users; }))]);
 
 			// Add axes
 			svg.append('g').attr("class", "x axis").attr("transform", "translate(0," + height + ")").call(xAxis);
@@ -124,7 +155,7 @@
 				.data(dashboard).enter().append("circle")
 				.attr("cx", function (d) { return xScale(d.avg_visit_time); })
 				.attr("cy", function (d) { return yScale(d.pageviews); })
-				.attr("r", 15)
+				.attr("r", function (d) { return radiusScale(d.users); })
 				.attr("stroke", d3.rgb("#000000"))
 				.attr("stroke-width", 1)
 				.style("fill", function (d) { return dotColorScale(d.name); });
@@ -132,7 +163,7 @@
 			// Add label
 			var label = svg.append("text")
 				.attr("class", "data set label")
-				.attr("x", width)
+				.attr("x", width-10)
 				.attr("y", height-60)
 				.attr("text-anchor", "end")
 				.text(jsonFile);
